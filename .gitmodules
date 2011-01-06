@@ -1,0 +1,6 @@
+[submodule "microtron"]
+	path = microtron
+	url = git://github.com/amccollum/microtron.git
+[submodule "ascompress"]
+	path = ascompress
+	url = git://github.com/Bancakan20/ascompress.git
