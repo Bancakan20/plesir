@@ -38,7 +38,7 @@ if __name__ == '__main__':
       <blockquote class="summary">Terminal 3 is the best terminal in <abbr class="type" title="place">Soekarno-Hatta Airport</abbr>. It's different than other terminals in the airport. It's small, yet it's really clean. It's the bigest improvements on air transportation services in Indonesia</blockquote>
       <div id="reviewer-prop">Reviewed by:
 	<span class="reviewer vcard">
-	  <span class="fn n">Didiet <span class="additional-name">Noor</span></span> &lt;<span class="email">lynxluna@gmail.com</span>&gt;
+	  <span class="fn n">Didiet <span class="additional-name">Noor</span></span> &lt;C<span class="email">lynxluna@gmail.com</span>&gt;
 	</span>
 	at <abbr class="dtreviewed" title="2011-01-04T02:00+07:00">January 04, 2011</abbr>
       </div>
@@ -53,15 +53,15 @@ if __name__ == '__main__':
     #
     # parse option
     #
-    optparser = OptionParser("usage: %prog <target_url>")
-    options, argument = optparser.parse_args(argv[1:])
-    if len(argument) != 2:
-        optparser.error("Incorrect number of argument")
-    url = "http://stream.masdab.com/post"
+    import pycurl
     values = {
-        post_id : post_id,
-        content : htmlstr
+        'post_id' : post_id,
+        'title'   : title,
+        'contents': htmlstr
     }
-    data = urllib.urlencode(values)
-    response = urllib2.urlopen(url, data)
-    print response.read()
+    postdata = urllib.urlencode(values)
+    
+    resp = urllib.urlopen("http://localhost:8888/", data=postdata)
+    output = resp.read()
+    print resp.code
+    

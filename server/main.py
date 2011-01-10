@@ -17,6 +17,11 @@ except ImportError:
     multiprocessing = None
 import time
 import errno
+import asyncmongo
+import microtron
+import lxml
+import lxml.html
+import lxml.etree
 
 version_string = "1.0b"
 version_info   = (0,9,9)
@@ -43,11 +48,11 @@ def pack_json( json_object ):
     json_string = json.dumps(json_object)
     compressed_data = zlib.compress(json_string)
     crc32 = zlib.crc32(json_string)
-    return pack(format, crc32, len(compressed_data)) + compressed_data
+    return pack(format, len(compressed_data), crc32) + compressed_data
 
 def unpack_json( packed_json ):
     format = "!II"
-    crc32, length = unpack( format, packed_json[:8] )
+    length, crc32 = unpack( format, packed_json[:8] )
     compressed_data = packed_json[8:length+8]
     return json.loads(zlib.decompress(compressed_data))
 
@@ -125,10 +130,10 @@ class PlesirConnection(object):
     def __init__( self, stream, address ):
         self.stream = stream
         self.address = address
-        self.stream.write(pack_json({"status":"ok","data":{}}))
+        self.stream.write(json.dumps({"status":"ok","data":{}})+"\r\n\r\n")
     def write( self, json_object ):
         if not self.stream.closed():
-            packed_json = pack_json( json_data )
+            packed_json = json.dumps( json_data )+"\r\n\r\n"
             self.stream.write( packed_json )
 
 
@@ -137,19 +142,84 @@ class StreamHandler( tornado.web.RequestHandler ):
     def __init__(self, application, request, **kwargs):
         tornado.web.RequestHandler.__init__(self, application, request)
         self.out_channel = kwargs["out_channel"]
+        
     def get(self):
         format = self.get_argument("format", None)
-        if self.out_channel is not None and len(self.out_channel.streaminfo) > 0:
-            for stream, address in self.out_channel.streaminfo:
-                stream.write("Hellowwww %s:%d" % address)
+        #if self.out_channel is not None and len(self.out_channel.streaminfo) > 0:
+        #    for stream, address in self.out_channel.streaminfo:
+        #        stream.write("Hellowwww %s:%d" % address)
         if format in ("html", None, ""):
             items = ["a", "b", "c"]
             self.render("templates/stream_view.html", items=items)
         elif format == "json":
             self.set_header("Content-Type", "application/json")
             self.write({"response":"ok", "data": {"foo":"bar"}})
+
     def post(self):
-        pass
+        post_id = self.get_argument("format", None)
+        title = self.get_argument("title", None)
+        contents = self.get_argument("contents", None)
+        tree = lxml.html.document_fromstring(contents)
+        parser = microtron.Parser(tree)
+        review = parser.parse_format("hreview")[0]
+        hcards = parser.parse_format("hcard")
+        
+        '''
+        Save Format on MongoDB and packet
+        {
+            title: <title>,
+            dtreviewed: <datetime>,
+            photos: [<url>,<url>,<url>]
+            geo:
+                lat: <lat>
+                long: <long>
+            url: <string>
+            reviewer: <string>
+            address:
+                country:
+                locality:
+                postal-code:
+                region:
+                street-address:
+                tel:
+            name:
+            
+        }
+        '''
+
+        place_hcard = hcards[0]
+        place_photo = place_hcard["photo"]
+        photo_list = [ {"src":s["src"], "alt":s["alt"]} for s in place_photo ]  
+        item = review["item"]
+        address = item["adr"][0]
+        date_obj = review["dtreviewed"]["date"]
+        date_dict = {"day": date_obj.day, "month": date_obj.month, "year":date_obj.year}
+        sdata = {"title": title,
+                 "dtreviewed": date_dict,
+                 "photos": photo_list,
+                 "geo": {"lat":float(item["geo"]["latitude"]),
+                         "long":float(item["geo"]["longitude"])},
+                 "url": "http://www.masdab.com",
+                 "reviewer": review["reviewer"]["fn"],
+                 "description":review["description"]}
+
+        db = asyncmongo.Client(pool_id="plesir", host="127.0.0.1",
+                               port=27017, dbname="plesir")
+        
+        def insert_log_cb(response, error):
+            assert len(response) == 1
+            
+        db.posts.insert(sdata, callback=insert_log_cb)
+
+        json_string = json.dumps(sdata)+"\r\n\r\n"
+
+        if self.out_channel is not None and len(self.out_channel.streaminfo) > 0:
+            for stream, address in self.out_channel.streaminfo:
+                stream.write(json_string)
+
+        self.set_header("Content-Type", "application/json")
+        self.write({"response":"ok"})
+
 
 def main():
     print '''
