@@ -18,6 +18,11 @@ except ImportError:
 import time
 import errno
 
+version_string = "1.0b"
+version_info   = (0,9,9)
+credits        = {"name"   : "Plesir Server",
+                  "author" : "Bancakan Committee"}
+
 def _cpu_count():
     if multiprocessing is not None:
         try:
@@ -93,7 +98,7 @@ class PlesirServer(object):
                     return
             os.waitpid(-1, 0)
         else:
-            logging.info("Parameter one")
+            logging.info("Server runs on single thread mode.")
             if not self.io_loop:
                 self.io_loop = ioloop.IOLoop.instance()
             self.io_loop.add_handler( self._socket.fileno(), self._handle_events, ioloop.IOLoop.READ )
@@ -139,17 +144,22 @@ class StreamHandler( tornado.web.RequestHandler ):
         pass
 
 def main():
+    print '''
+             ----------------------------------------------
+             %s - (c) 2010 %s
+             version %s
+             ----------------------------------------------\n\n''' % \
+        (credits["name"], credits["author"], version_string)
     application = tornado.web.Application([
             (r"/", StreamHandler),
         ])
-    io_loop = ioloop.IOLoop.instance()
     tornado.options.parse_command_line()
     http_server = tornado.httpserver.HTTPServer(application)
     http_server.listen(8888)
-    plesir_server = PlesirServer(io_loop)
+    plesir_server = PlesirServer(ioloop.IOLoop.instance())
     plesir_server.bind(50000)
-    plesir_server.start(2)
-    io_loop.start()
+    plesir_server.start(1)
+    ioloop.IOLoop.instance().start()
 
 
 if __name__ == "__main__":
