@@ -35,7 +35,8 @@ def _cpu_count():
 
 def pack_json( json_object ):
     format = "!II"
-    compressed_data = zlib.compress(json.dumps(json_string))
+    json_string = json.dumps(json_object)
+    compressed_data = zlib.compress(json_string)
     crc32 = zlib.crc32(json_string)
     return pack(format, crc32, len(compressed_data)) + compressed_data
 
@@ -67,6 +68,7 @@ class PlesirServer(object):
         self._socket.listen( 128 )
 
     def start( self, num_processes=1 ):
+        logging.info("Starting Plesir Server...")
         assert not self._started
         self._started = True
         if num_processes is None or num_processes <= 0:
@@ -91,9 +93,10 @@ class PlesirServer(object):
                     return
             os.waitpid(-1, 0)
         else:
+            logging.info("Parameter one")
             if not self.io_loop:
                 self.io_loop = ioloop.IOLoop.instance()
-                self.io_loop.add_handler( self._socket.fileno(), self._handle_events, ioloop.IOLoop.READ )
+            self.io_loop.add_handler( self._socket.fileno(), self._handle_events, ioloop.IOLoop.READ )
 
     def stop( self ):
         self.io_loop.remove_handler( self._socket.fileno() )
@@ -103,11 +106,12 @@ class PlesirServer(object):
         while True:
             try:
                 connection, address = self._socket.accept()
+                logging.info( "Connection coming from %s port %d", address[0], address[1])
             except socket.error, e:
                 if e.args[0] in (errno.EWOULDBLOCK, errno.EAGAIN):
                     return
                 raise
-            stream = iostream.IOStream(connection, io_loop = self.io_loop)
+            stream = tornado.iostream.IOStream(connection, io_loop = self.io_loop)
             PlesirConnection(stream, address)
         
         
@@ -115,7 +119,7 @@ class PlesirConnection(object):
     def __init__( self, stream, address ):
         self.stream = stream
         self.address = address
-
+        self.stream.write(pack_json({"status":"ok","data":{}}))
     def write( self, json_object ):
         if not self.stream.closed():
             packed_json = pack_json( json_data )
@@ -144,7 +148,7 @@ def main():
     http_server.listen(8888)
     plesir_server = PlesirServer(io_loop)
     plesir_server.bind(50000)
-    plesir_server.start(-1)
+    plesir_server.start(2)
     io_loop.start()
 
 
