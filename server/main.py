@@ -56,7 +56,7 @@ class PlesirServer(object):
         self.io_loop = io_loop
         self._socket = None
         self._started = False
-
+        self.streaminfo = []
     def listen( self, port, address=""):
         self.bind( port, address )
         self.start( 1 )
@@ -117,6 +117,7 @@ class PlesirServer(object):
                     return
                 raise
             stream = tornado.iostream.IOStream(connection, io_loop = self.io_loop)
+            self.streaminfo.append((stream, address))
             PlesirConnection(stream, address)
         
         
@@ -132,8 +133,15 @@ class PlesirConnection(object):
 
 
 class StreamHandler( tornado.web.RequestHandler ):
+    out_channel = None
+    def __init__(self, application, request, **kwargs):
+        tornado.web.RequestHandler.__init__(self, application, request)
+        self.out_channel = kwargs["out_channel"]
     def get(self):
         format = self.get_argument("format", None)
+        if self.out_channel is not None and len(self.out_channel.streaminfo) > 0:
+            for stream, address in self.out_channel.streaminfo:
+                stream.write("Hellowwww %s:%d" % address)
         if format in ("html", None, ""):
             items = ["a", "b", "c"]
             self.render("templates/stream_view.html", items=items)
@@ -150,14 +158,16 @@ def main():
              version %s
              ----------------------------------------------\n\n''' % \
         (credits["name"], credits["author"], version_string)
+
+    plesir_server = PlesirServer(ioloop.IOLoop.instance())
+    plesir_server.bind(50000)
+    
     application = tornado.web.Application([
-            (r"/", StreamHandler),
+            (r"/", StreamHandler, {"out_channel":plesir_server}),
         ])
     tornado.options.parse_command_line()
     http_server = tornado.httpserver.HTTPServer(application)
     http_server.listen(8888)
-    plesir_server = PlesirServer(ioloop.IOLoop.instance())
-    plesir_server.bind(50000)
     plesir_server.start(1)
     ioloop.IOLoop.instance().start()
 
