@@ -4,7 +4,6 @@
     <classEntry path="org.bancakan.plesir.Client"/>
     <classEntry path="org.bancakan.plesir.definition.PlaceData"/>
     <classEntry path="org.bancakan.plesir.definition.Photo"/>
-    <classEntry path="org.bancakan.plesir.definition.GeoData"/>
   </includeClasses>
   <includeResources/>
   <namespaceManifests/>

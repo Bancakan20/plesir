@@ -10,8 +10,6 @@ package org.bancakan.plesir
 	import flash.net.Socket;
 	import flash.utils.ByteArray;
 	
-	import org.bancakan.plesir.definition.PlaceData;
-	
 	public class Client extends EventDispatcher
 	{
 		private var socket:Socket;

@@ -34,15 +34,17 @@ package org.bancakan.plesir.ui
 		
 		private function startHandler(event:MouseEvent):void
 		{
-			this.plesirClient.connect("127.0.0.1", 50000);
+			this.plesirClient.connect("192.168.1.107", 50000);
 		}
 		
 		private function receiveHandler(event:Event):void
 		{
-			var last_item:*;
+			var last_item:Array;
 			last_item = plesirClient.last_item;
-			this.txtDisplay.text = last_item.description;
-			
+			for ( var i:int = 0; i < last_item.length; ++i )
+			{
+				this.txtDisplay.text += i.toString() + "-" + last_item[i].title+"\n";
+			}
 		}
 		
 		private function connectHandler(event:Event):void

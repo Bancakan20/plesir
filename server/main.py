@@ -161,8 +161,12 @@ class PlesirConnection(object):
                                port=27017, dbname="plesir")
         db.posts.find({}, limit=20, callback=self.query_callback)
     def query_callback( self, response, error ):
-        self.stream.write(prefixed_json(response))
-        
+        def remove_uid(item):
+            if item.has_key('_id'):
+                del item['_id']
+            return item
+#self.stream.write(prefixed_json(response))
+        self.stream.write(prefixed_json(map(remove_uid, response)))
 class StreamHandler( tornado.web.RequestHandler ):
     out_channel = None
     def __init__(self, application, request, **kwargs):
