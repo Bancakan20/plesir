@@ -143,6 +143,7 @@ class PlesirConnection(object):
     def __init__( self, stream, address ):
         self.stream = stream
         self.address = address
+        self.fetch_posts()
         #self.stream.write(prefixed_json({"status":"ok","data":{}}))
     def write( self, json_object, prefixed=False, compressed=False ):
         if not self.stream.closed():
@@ -154,6 +155,13 @@ class PlesirConnection(object):
                 else:
                     stream_out = compress_json( json_object )
             self.stream.write( stream_out )
+
+    def fetch_posts( self ):
+        db = asyncmongo.Client(pool_id="plesir", host="127.0.0.1",
+                               port=27017, dbname="plesir")
+        db.posts.find({}, limit=20, callback=self.query_callback)
+    def query_callback( self, response, error ):
+        self.stream.write(prefixed_json(response))
         
 class StreamHandler( tornado.web.RequestHandler ):
     out_channel = None
@@ -212,14 +220,14 @@ class StreamHandler( tornado.web.RequestHandler ):
         address = item["adr"][0]
         date_obj = review["dtreviewed"]["date"]
         date_dict = {"day": date_obj.day, "month": date_obj.month, "year":date_obj.year}
-        sdata = {"title": title,
+        sdata = [{"title": title,
                  "dtreviewed": date_dict,
                  "photos": photo_list,
                  "geo": {"lat":float(item["geo"]["latitude"]),
                          "long":float(item["geo"]["longitude"])},
                  "url": "http://www.masdab.com",
                  "reviewer": review["reviewer"]["fn"],
-                 "description":review["description"]}
+                 "description":review["description"]}]
 
         db = asyncmongo.Client(pool_id="plesir", host="127.0.0.1",
                                port=27017, dbname="plesir")
