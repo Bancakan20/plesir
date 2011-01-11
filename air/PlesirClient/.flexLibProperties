@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="true" version="3">
+  <includeClasses>
+    <classEntry path="org.bancakan.plesir.Client"/>
+    <classEntry path="org.bancakan.plesir.definition.PlaceData"/>
+    <classEntry path="org.bancakan.plesir.definition.Photo"/>
+    <classEntry path="org.bancakan.plesir.definition.GeoData"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

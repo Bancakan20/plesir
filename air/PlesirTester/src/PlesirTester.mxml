@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<custom:PlesirTesterApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   xmlns:custom="org.bancakan.plesir.ui.*" height="244" width="592">
+
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:Button x="6" y="10" label="Connect to Server" width="192" height="39" id="startButton"/>
+	<s:TextArea x="8" y="82" width="559" height="139" id="txtDisplay"/>
+	<s:Label x="8" y="67" text="Description&#xd;"/>
+	<s:Label x="239" y="21" text="Label" width="146" height="28" id="lblConnect"/>
+</custom:PlesirTesterApplication>

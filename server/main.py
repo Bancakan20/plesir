@@ -43,14 +43,19 @@ def _cpu_count():
                   "running with one process")
     return 1
 
-def pack_json( json_object ):
+def prefixed_json( json_object ):
+    format = "!I"
+    json_string = json.dumps(json_object)
+    return pack(format, len(json_string)) + json_string
+
+def compress_json( json_object ):
     format = "!II"
     json_string = json.dumps(json_object)
     compressed_data = zlib.compress(json_string)
     crc32 = zlib.crc32(json_string)
     return pack(format, len(compressed_data), crc32) + compressed_data
 
-def unpack_json( packed_json ):
+def decompress_json( packed_json ):
     format = "!II"
     length, crc32 = unpack( format, packed_json[:8] )
     compressed_data = packed_json[8:length+8]
@@ -138,13 +143,18 @@ class PlesirConnection(object):
     def __init__( self, stream, address ):
         self.stream = stream
         self.address = address
-        self.stream.write(json.dumps({"status":"ok","data":{}})+"\r\n\r\n")
-    def write( self, json_object ):
+        #self.stream.write(prefixed_json({"status":"ok","data":{}}))
+    def write( self, json_object, prefixed=False, compressed=False ):
         if not self.stream.closed():
-            packed_json = json.dumps( json_data )+"\r\n\r\n"
-            self.stream.write( packed_json )
-
-
+            if not prefixed:
+                stream_out = json.dumps( json_object )+"\r\n\r\n"
+            else:
+                if not compressed:
+                    stream_out = prefixed_json( json_object )
+                else:
+                    stream_out = compress_json( json_object )
+            self.stream.write( stream_out )
+        
 class StreamHandler( tornado.web.RequestHandler ):
     out_channel = None
     def __init__(self, application, request, **kwargs):
@@ -223,7 +233,8 @@ class StreamHandler( tornado.web.RequestHandler ):
 
         if self.out_channel is not None and len(self.out_channel.connections) > 0:
             for conn in self.out_channel.connections:
-                conn.write(sdata)
+                # conn.stream.write(pack("!I", 56))
+                conn.write(sdata, True, False)
 
         self.set_header("Content-Type", "application/json")
         self.write({"response":"ok"})
