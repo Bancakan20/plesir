@@ -61,7 +61,8 @@ class PlesirServer(object):
         self.io_loop = io_loop
         self._socket = None
         self._started = False
-        self.streaminfo = []
+        self.connections = []
+
     def listen( self, port, address=""):
         self.bind( port, address )
         self.start( 1 )
@@ -107,11 +108,17 @@ class PlesirServer(object):
             if not self.io_loop:
                 self.io_loop = ioloop.IOLoop.instance()
             self.io_loop.add_handler( self._socket.fileno(), self._handle_events, ioloop.IOLoop.READ )
-
     def stop( self ):
         self.io_loop.remove_handler( self._socket.fileno() )
         self._socket.close()
 
+    def _close_callback( self, *args, **kwargs ):
+        for conn in self.connections:
+            if conn.stream.closed():
+                logging.info("Client %s: %d disconnected" % conn.address)
+                self.connections.remove(conn)
+                
+    
     def _handle_events( self, fd, events ):
         while True:
             try:
@@ -122,8 +129,9 @@ class PlesirServer(object):
                     return
                 raise
             stream = tornado.iostream.IOStream(connection, io_loop = self.io_loop)
-            self.streaminfo.append((stream, address))
-            PlesirConnection(stream, address)
+            stream.set_close_callback( self._close_callback )
+            conn = PlesirConnection(stream, address)
+            self.connections.append( conn )
         
         
 class PlesirConnection(object):
@@ -213,9 +221,9 @@ class StreamHandler( tornado.web.RequestHandler ):
 
         json_string = json.dumps(sdata)+"\r\n\r\n"
 
-        if self.out_channel is not None and len(self.out_channel.streaminfo) > 0:
-            for stream, address in self.out_channel.streaminfo:
-                stream.write(json_string)
+        if self.out_channel is not None and len(self.out_channel.connections) > 0:
+            for conn in self.out_channel.connections:
+                conn.write(sdata)
 
         self.set_header("Content-Type", "application/json")
         self.write({"response":"ok"})
@@ -223,6 +231,14 @@ class StreamHandler( tornado.web.RequestHandler ):
 
 def main():
     print '''
+ ____                                      __                                                                                                                                        
+/\\  _`\\                                   /\\ \\                                                                                                                                       
+\\ \\ \\L\\ \\     __      ___     ___     __  \\ \\ \\/'\\      __      ___                                                                                                                  
+ \\ \\  _ <'  /'__`\\  /' _ `\\  /'___\\ /'__`\\ \\ \\ , <    /'__`\\  /' _ `\\                                                                                                                
+  \\ \\ \\L\\ \\/\\ \\L\\.\\_/\\ \\/\\ \\/\\ \\__//\\ \\L\\.\\_\\ \\ \\\\`\\ /\\ \\L\\.\\_/\\ \\/\\ \\                                                                                                               
+   \\ \\____/\\ \\__/.\\_\\ \\_\\ \\_\\ \\____\\ \\__/.\\_\\\\ \\_\\ \\_\\ \\__/.\\_\\ \\_\\ \\_\\                                                                                                              
+    \\/___/  \\/__/\\/_/\\/_/\\/_/\\/____/\\/__/\\/_/ \\/_/\\/_/\\/__/\\/_/\\/_/\\/_/
+
              ----------------------------------------------
              %s - (c) 2010 %s
              version %s
@@ -239,8 +255,17 @@ def main():
     http_server = tornado.httpserver.HTTPServer(application)
     http_server.listen(8888)
     plesir_server.start(1)
-    ioloop.IOLoop.instance().start()
-
+    try:
+        ioloop.IOLoop.instance().start()
+    except KeyboardInterrupt:
+        logging.info("Stopping...")
+        logging.info("Stopping Plesir Socket Server...")
+        plesir_server.stop()
+        logging.info("Stopping Plesir HTTP Server...")
+        http_server.stop()
+        logging.info("Stopping I/O Loop...")
+        ioloop.IOLoop.instance().stop()
+        logging.info("Stopping complete!")
 
 if __name__ == "__main__":
     main()
